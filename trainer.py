@@ -2,12 +2,30 @@ import torch
 import torch.nn as nn
 import numpy as np
 from transformers import get_linear_schedule_with_warmup
+from tqdm import tqdm
 
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
 
 def cal_acc(y_pred, y_true):
     return torch.sum(torch.argmax(y_pred, axis=1) == y_true) / len(y_true)
+
+def f1_loss(y_pred, y_true, is_training=False):
+    assert y_true.ndim == 1
+    assert y_pred.ndim == 1 or y_pred.ndim == 2
+    if y_pred.ndim == 2:
+        y_pred = y_pred.argmax(dim=1)
+    tp = (y_true * y_pred).sum().to(torch.float32)
+    tn = ((1 - y_true) * (1 - y_pred)).sum().to(torch.float32)
+    fp = ((1 - y_true) * y_pred).sum().to(torch.float32)
+    fn = (y_true * (1 - y_pred)).sum().to(torch.float32)
+    epsilon = 1e-7
+    precision = tp / (tp + fp + epsilon)
+    recall = tp / (tp + fn + epsilon)
+    
+    f1 = 2* (precision*recall) / (precision + recall + epsilon)
+    f1.requires_grad = is_training
+    return f1
 
 class Trainer(object):
     def __init__(self, model, train_loader, val_loader):
@@ -21,7 +39,7 @@ class Trainer(object):
         self.loss_fn = nn.CrossEntropyLoss()
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.metric = cal_acc
+        self.metric = f1_loss
 
     def from_checkpoint(self, model_path):
         if os.path.exists(model_path):
@@ -85,13 +103,13 @@ class Trainer(object):
             epoch_accuracy += np.sum(batch_accuracy)
             mode = "Train" if not eval else "Eval"
             if (step+1) % logging_freq == 0: # Use 1-based index for logging
-                data_iter.set_description("Mode: {} | Step: {} | Loss: {} | Accuracy: {}".format(
+                data_iter.set_description("Mode: {} | Step: {} | Loss: {} | Metric: {}".format(
                     mode, step + 1, 
                     np.mean(batch_loss[(step + 1 - logging_freq) : (step+1)]), 
                     np.mean(batch_accuracy[(step + 1 - logging_freq) : (step+1)])
                 ))
             if (step) == len(loader)-1:
-                data_iter.set_description("Mode: {} | End of Epoch | Loss: {} | Accuracy: {}".format(
+                data_iter.set_description("Mode: {} | End of Epoch | Loss: {} | Metric: {}".format(
                     mode, 
                     epoch_loss/(step+1),
                     epoch_accuracy/(step+1)
@@ -114,7 +132,7 @@ class Trainer(object):
             train_loss += epoch_loss
             train_accuracy += epoch_accuracy
 
-            print("Mode: Train | Epoch: {} | Loss: {} | Accuracy: {}".format(
+            print("Mode: Train | Epoch: {} | Loss: {} | Metric: {}".format(
                   i + 1, train_loss / (i+1), train_accuracy / (i+1)
             ))
             if i % val_freq == 0:
@@ -125,7 +143,7 @@ class Trainer(object):
 
                     val_loss += epoch_loss
                     val_accuracy += epoch_accuracy
-                    print("Mode: Eval | Epoch: {} | Loss: {} | Accuracy: {}".format(
+                    print("Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
                         i + 1, val_loss / (i+1), val_accuracy / (i+1)
                     ))
 
