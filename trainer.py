@@ -4,6 +4,7 @@ import numpy as np
 from transformers import get_linear_schedule_with_warmup
 from tqdm import tqdm
 
+
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
 
@@ -37,18 +38,26 @@ class Trainer(object):
     """
     Our trainer of BERT model.
     """
-    def __init__(self, model, train_loader, val_loader):
+    def __init__(self, model, config, train_loader, val_loader):
+
+        self.config = config
+        self.epochs = self.config['epochs']
+        self.gas = self.config['gradient_accumulate_steps']
+        self.lr = self.config['lr']
 
         self.model = model.to(device)
-        self.epochs = 20
-        self.optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=0.003)
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer,
-                                                num_warmup_steps=0, # Default value
-                                                num_training_steps=self.epochs * len(train_loader))
+        self.optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.lr)
+        self.scheduler = get_linear_schedule_with_warmup(
+            self.optimizer,
+            num_warmup_steps=0, # Default value
+            num_training_steps=self.epochs * (len(train_loader)//self.gas) # Note the traing steps also adjust based on gas
+        )
         self.loss_fn = nn.CrossEntropyLoss()
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.metric = f1_loss
+
+
 
     def from_checkpoint(self, model_path):
         """
@@ -73,11 +82,10 @@ class Trainer(object):
         print('Model saved as path {}!'.format(save_path))
         print('-'*60)
 
-    def run_one_epoch(self, loader, gas, logging_freq, eval=False ):
+    def run_one_epoch(self, loader, logging_freq, eval=False ):
         """
         Fuction to train for one epoch
         loader: dataloader
-        gas: how many steps of training before we do optimisation
         logging_freq: how many steps do we log the running stat
         eval: whether running train or evaluation
         """
@@ -97,14 +105,14 @@ class Trainer(object):
             if not eval:
                 self.optimizer.zero_grad()
 
-                loss = self.loss_fn(y_pred, y_true)/gas
+                # Normalise the loss if accumulation applied (decouple from learning rate)
+                loss = self.loss_fn(y_pred, y_true)/self.gas
+                loss.backward()
 
                 # Accumulate gradient to effectively increase batch size
-                if step % gas == 0:
+                if step % self.gas == 0:
                     self.optimizer.step()
                     self.scheduler.step()
-                # Normalise the loss if accumulation applied
-                loss.backward()
 
                 accuracy = self.metric(y_pred, y_true)
                 loss = loss.cpu().item() if use_cuda else loss.item()
@@ -148,10 +156,9 @@ class Trainer(object):
             
         return epoch_loss, epoch_accuracy
     
-    def train(self, gradient_accumulate_steps=1, logging_freq=10, val_freq=20):
+    def train(self, logging_freq=10, val_freq=20):
         """
         Function to train the model
-        gradient_accumulate_steps: how many steps of training before we do optimisation
         logging_freq: how many steps do we log the running stat
         val_freq: frequency to do evaluation
         """
@@ -167,7 +174,6 @@ class Trainer(object):
             epoch_loss, epoch_accuracy = self.run_one_epoch(
                 self.train_loader, 
                 logging_freq=logging_freq, 
-                gas=gradient_accumulate_steps, 
                 eval=False
             )
             
@@ -187,7 +193,6 @@ class Trainer(object):
                     epoch_loss, epoch_accuracy = self.run_one_epoch(
                         self.val_loader, 
                         logging_freq=logging_freq, 
-                        gas=gradient_accumulate_steps, 
                         eval=True
                     )
 
@@ -196,5 +201,11 @@ class Trainer(object):
                     print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
                         i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1)
                     ))
+    def inference(self, data):
+        with torch.no_grad():
+            data = data.to(device)
+            y_pred = self.model(data['input_ids'], data['attention_mask'])
+            y_pred = y_pred.argmax(dim=1)
+            return y_pred.cpu().item()
 
             
