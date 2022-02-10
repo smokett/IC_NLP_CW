@@ -4,7 +4,7 @@ from transformers import RobertaForSequenceClassification, get_linear_schedule_w
 class MyBertModel(nn.Module):
     def __init__(self):
         super(MyBertModel, self).__init__()
-        self.bert = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+        self.bert = RobertaForSequenceClassification.from_pretrained('roberta-base')
         
     def forward(self, input_ids, attention_mask):
         bert_out = self.bert(input_ids=input_ids, attention_mask=attention_mask)

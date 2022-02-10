@@ -16,6 +16,10 @@ class dataset(Dataset):
         label = torch.LongTensor([self.df['label'].iloc[index]]).squeeze()
         return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze(), label
 
+    def get_sample_weights(self):
+        weights = self.df['label'].value_counts().min() / self.df['label'].value_counts()[self.df['label']]
+        return weights.to_list()
+
 
 if __name__=='__main__':
     from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
@@ -27,8 +31,8 @@ if __name__=='__main__':
     df_train, df_test, _, _ = get_df(path)
     train_data = dataset(df_train,tk)
     val_data = dataset(df_test,tk)
-    train_dataloader = DataLoader(dataset = train_data, batch_size=24, shuffle=True)
-    val_dataloader = DataLoader(dataset = val_data, batch_size=24, shuffle=False)
+    train_dataloader = DataLoader(dataset = train_data, batch_size=8, shuffle=True)
+    val_dataloader = DataLoader(dataset = val_data, batch_size=8, shuffle=False)
     
     a,b,c = next(iter(train_dataloader))
     print(a.shape, b.shape, c.shape)

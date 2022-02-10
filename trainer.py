@@ -144,7 +144,7 @@ class Trainer(object):
                     val_loss += epoch_loss
                     val_accuracy += epoch_accuracy
                     print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
-                        i + 1, val_loss / (i+1), val_accuracy / (i+1)
+                        i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1)
                     ))
 
             
