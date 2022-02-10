@@ -8,9 +8,15 @@ use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
 
 def cal_acc(y_pred, y_true):
+    """
+    Calculate accuracy
+    """
     return torch.sum(torch.argmax(y_pred, axis=1) == y_true) / len(y_true)
 
 def f1_loss(y_pred, y_true, is_training=False):
+    """
+    Calculate F1-score
+    """
     assert y_true.ndim == 1
     assert y_pred.ndim == 1 or y_pred.ndim == 2
     if y_pred.ndim == 2:
@@ -28,6 +34,9 @@ def f1_loss(y_pred, y_true, is_training=False):
     return f1
 
 class Trainer(object):
+    """
+    Our trainer of BERT model.
+    """
     def __init__(self, model, train_loader, val_loader):
 
         self.model = model.to(device)
@@ -42,6 +51,9 @@ class Trainer(object):
         self.metric = f1_loss
 
     def from_checkpoint(self, model_path):
+        """
+        Function to load trained model
+        """
         if os.path.exists(model_path):
             print('-'*60)
             print('Loading pretrained model:{}...'.format(model_path))
@@ -62,6 +74,12 @@ class Trainer(object):
         print('-'*60)
 
     def run_one_epoch(self, loader, logging_freq=10, eval=False ):
+        """
+        Fuction to train for one epoch
+        loader: dataloader
+        logging_freq: the number of batches for lagging
+        eval: whether running train or evaluation
+        """
         # Moving average statistics
         epoch_loss = 0.0
         epoch_accuracy = 0.0
@@ -74,6 +92,7 @@ class Trainer(object):
             input_ids, attention_mask, y_true = [x.to(device) for x in batch]
             y_pred = self.model(input_ids, attention_mask)
 
+            # Training, actively update parameters
             if not eval:
                 self.optimizer.zero_grad()
 
@@ -89,6 +108,7 @@ class Trainer(object):
                 batch_loss.append(loss)
                 batch_accuracy.append(accuracy)
 
+            # Evaluation, no gradient
             else:
                 loss = self.loss_fn(y_pred, y_true)
                 accuracy = self.metric(y_pred, y_true)
@@ -101,23 +121,33 @@ class Trainer(object):
                 
             epoch_loss = np.sum(batch_loss)
             epoch_accuracy = np.sum(batch_accuracy)
+
+            # Logging statistics
             mode = "Train" if not eval else "Eval"
+            # Moving average of batches
             if (step+1) % logging_freq == 0: # Use 1-based index for logging
                 data_iter.set_description("[Batch {} Running Stat] Mode: {} | Step: {} | Loss: {} | Metric: {}".format(
                     logging_freq, mode, step + 1,
                     np.mean(batch_loss[(step + 1 - logging_freq) : (step+1)]), 
                     np.mean(batch_accuracy[(step + 1 - logging_freq) : (step+1)])
-                ))
+                )
+            )
+            # Whole average of batch in one epoch
             if (step) == len(loader)-1:
                 data_iter.set_description("[Per Batch Stat] Mode: {} | End of Epoch | Loss: {} | Metric: {}".format(
                     mode, 
                     epoch_loss/(step+1),
                     epoch_accuracy/(step+1)
-                ))
+                )
+            )
             
         return epoch_loss, accuracy
     
     def train(self, val_freq=20):
+        """
+        Function to train the model
+        val_freq: frequency to do evaluation
+        """
         # Moving average statistics
         train_loss = 0.0
         train_accuracy = 0.0
@@ -134,7 +164,10 @@ class Trainer(object):
 
             print("[Epoch Running Stat] Mode: Train | Epoch: {} | Loss: {} | Metric: {}".format(
                   i + 1, train_loss / (i+1), train_accuracy / (i+1)
-            ))
+                )
+            )
+
+            # Do evaluation 
             if i % val_freq == 0:
                 self.model.eval()
                 with torch.no_grad():

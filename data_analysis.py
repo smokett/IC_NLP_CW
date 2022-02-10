@@ -12,19 +12,37 @@ from termcolor import colored
 from utils import save, load
 
 class Preprocessor(object):
+    """
+    Preprocessor
+    """
     def __init__(self):
         # Define spacy pipeline
         self.nlp = spacy.load('en_core_web_md')
         self.tfidf = TfidfVectorizer(tokenizer=lambda x: x, min_df = 2, max_df = 0.5, ngram_range = (1, 2), lowercase=False)
 
-
+    @staticmethod
     def cut_sentences(self, df, max_len=512):
+        """
+        Fucntion to cut sentence and place it as a new sample
+
+        For example, a sentence with length 1025 will be cut into:
+        sentence A with len 512 + sentence B with len 512 + sentence C with len 1
+        Other info such as label will be retained
+
+        Is this the best approach? Should we only do it to the negative samples?
+        """
         # Should we find the nearest "." symbol to cut the sentences?
-        df['truncated_paragraph'] = df.paragraph.apply(lambda s: [s[i:i+max_len] for i in range(0, len(s), max_len)])
-        df.explode('truncated_paragraph', inplace=True)
+        df['paragraph'] = df.paragraph.apply(lambda s: [s[i:i+max_len] for i in range(0, len(s), max_len)])
+        df.explode('paragraph', inplace=True)
         return df
 
     def spacy_preprocess(self, texts, save_path):
+        """
+        Function to preprocess using spacy tokenizer AND save the resulted tokens
+        texts: List of texts
+        save_path: path to save
+        Return: List of tokens
+        """
         print('Preprocessing using spacy pipeline...')
         docs = self.nlp.pipe(texts)
         out_tokens = [self.spacy_tokenizer(doc) for doc in docs]
@@ -34,23 +52,35 @@ class Preprocessor(object):
 
     @staticmethod 
     def spacy_tokenizer(doc):
+        """
+        A spacy tokenizer to do preprocessing for Tranditional ML classifier
+        """
         out_tokens = []
         for token in doc:
             if token.is_stop or token.is_punct:
-                continue
+                continue # Remove stop words
             elif token.like_email:
-                out_tokens.append('<email>')
+                out_tokens.append('<email>') # Replayce email 
             elif token.like_url:
-                out_tokens.append('<url>')
+                out_tokens.append('<url>') # Replace URL
             elif token.like_num:
-                out_tokens.append('<num>')
-            elif token.lemma_ != "-PRON-":
-                out_tokens.append(token.lemma_.lower().strip())
+                out_tokens.append('<num>') # Replace numbers
+            elif token.lemma_ != "-PRON-": # Lemmatisation if not proper noun
+                out_tokens.append(token.lemma_.lower().strip()) 
             else:
-                out_tokens.append(token.lower_)
+                out_tokens.append(token.lower_) # Lower case
         return out_tokens
 
     def get_tfidf_vectors(self, df, train, load_path='spacy_preprocessed', force_rebuild=False):
+        """
+        Function to build TF-IDF matrix
+        df: dataframe to process
+        train: bool, if true fit and transform, if false, only transform
+        load_path: if present, load tokens from file (No preprocessing of df required)
+        force_rebuild: bool, whether to force the re-preprocessing of the df
+
+        Return: TF-IDF matrix, size (#samples, #tokens)
+        """
         path = load_path+'_train.pkl' if train else load_path+'_val.pkl'
         if os.path.exists(path) and not force_rebuild:
             print('Loading preprocessed tokens...')
@@ -155,7 +185,7 @@ if __name__=='__main__':
     df_train.groupby('label')['para_len'].describe()
 
     import xgboost as xgb
-    d_train = xgb.DMatrix(X[X.columns.drop('label')], X['label'])
+    d_train = xgb.DMatrix(X[X.columns.drop('label').values], X['label'].values)
     xgb_params = {'eta': 0.05, 
               'max_depth': 12, 
               'subsample': 0.8, 
