@@ -73,11 +73,11 @@ class Trainer(object):
         print('Model saved as path {}!'.format(save_path))
         print('-'*60)
 
-    def run_one_epoch(self, loader, gradient_accumulate_steps, logging_freq, eval=False ):
+    def run_one_epoch(self, loader, gas, logging_freq, eval=False ):
         """
         Fuction to train for one epoch
         loader: dataloader
-        gradient_accumulate_steps: how many steps of training before we do optimisation
+        gas: how many steps of training before we do optimisation
         logging_freq: how many steps do we log the running stat
         eval: whether running train or evaluation
         """
@@ -97,14 +97,14 @@ class Trainer(object):
             if not eval:
                 self.optimizer.zero_grad()
 
-                loss = self.loss_fn(y_pred, y_true)
+                loss = self.loss_fn(y_pred, y_true)/gas
 
                 # Accumulate gradient to effectively increase batch size
-                if step % gradient_accumulate_steps == 0:
+                if step % gas == 0:
                     self.optimizer.step()
                     self.scheduler.step()
                 # Normalise the loss if accumulation applied
-                (loss/gradient_accumulate_steps).backward()
+                loss.backward()
 
                 accuracy = self.metric(y_pred, y_true)
                 loss = loss.cpu().item() if use_cuda else loss.item()
@@ -167,7 +167,7 @@ class Trainer(object):
             epoch_loss, epoch_accuracy = self.run_one_epoch(
                 self.train_loader, 
                 logging_freq=logging_freq, 
-                gradient_accumulate_steps=gradient_accumulate_steps, 
+                gas=gradient_accumulate_steps, 
                 eval=False
             )
             
@@ -187,7 +187,7 @@ class Trainer(object):
                     epoch_loss, epoch_accuracy = self.run_one_epoch(
                         self.val_loader, 
                         logging_freq=logging_freq, 
-                        gradient_accumulate_steps=gradient_accumulate_steps, 
+                        gas=gradient_accumulate_steps, 
                         eval=True
                     )
 
