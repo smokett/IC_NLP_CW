@@ -26,6 +26,9 @@ def get_df(path):
 
     df_train.dropna(subset=['paragraph'], inplace=True)
     df_test.dropna(subset=['paragraph'], inplace=True)
+
+    df_train.to_csv('df_train.csv')
+    df_test.to_csv('df_test.csv')
     return df_train, df_test, df_pcl, df_cat
 
 def save(obj, filename):
@@ -59,3 +62,5 @@ def evaluate(y_score, y_true):
     plt.xlabel('False Positive Rate')
     plt.show()
 
+if __name__ == '__main__':
+    df_train, df_test, df_pcl, df_cat = get_df('nlp_data')

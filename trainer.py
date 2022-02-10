@@ -100,16 +100,16 @@ class Trainer(object):
                 batch_accuracy.append(accuracy)
                 
             epoch_loss = np.sum(batch_loss)
-            epoch_accuracy += np.sum(batch_accuracy)
+            epoch_accuracy = np.sum(batch_accuracy)
             mode = "Train" if not eval else "Eval"
             if (step+1) % logging_freq == 0: # Use 1-based index for logging
-                data_iter.set_description("Mode: {} | Step: {} | Loss: {} | Metric: {}".format(
-                    mode, step + 1, 
+                data_iter.set_description("[Batch {} Running Stat] Mode: {} | Step: {} | Loss: {} | Metric: {}".format(
+                    logging_freq, mode, step + 1,
                     np.mean(batch_loss[(step + 1 - logging_freq) : (step+1)]), 
                     np.mean(batch_accuracy[(step + 1 - logging_freq) : (step+1)])
                 ))
             if (step) == len(loader)-1:
-                data_iter.set_description("Mode: {} | End of Epoch | Loss: {} | Metric: {}".format(
+                data_iter.set_description("[Per Batch Stat] Mode: {} | End of Epoch | Loss: {} | Metric: {}".format(
                     mode, 
                     epoch_loss/(step+1),
                     epoch_accuracy/(step+1)
@@ -132,7 +132,7 @@ class Trainer(object):
             train_loss += epoch_loss
             train_accuracy += epoch_accuracy
 
-            print("Mode: Train | Epoch: {} | Loss: {} | Metric: {}".format(
+            print("[Epoch Running Stat] Mode: Train | Epoch: {} | Loss: {} | Metric: {}".format(
                   i + 1, train_loss / (i+1), train_accuracy / (i+1)
             ))
             if i % val_freq == 0:
@@ -143,7 +143,7 @@ class Trainer(object):
 
                     val_loss += epoch_loss
                     val_accuracy += epoch_accuracy
-                    print("Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
+                    print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
                         i + 1, val_loss / (i+1), val_accuracy / (i+1)
                     ))
 
