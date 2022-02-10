@@ -73,11 +73,12 @@ class Trainer(object):
         print('Model saved as path {}!'.format(save_path))
         print('-'*60)
 
-    def run_one_epoch(self, loader, logging_freq=10, eval=False ):
+    def run_one_epoch(self, loader, gradient_accumulate_steps, logging_freq, eval=False ):
         """
         Fuction to train for one epoch
         loader: dataloader
-        logging_freq: the number of batches for lagging
+        gradient_accumulate_steps: how many steps of training before we do optimisation
+        logging_freq: how many steps do we log the running stat
         eval: whether running train or evaluation
         """
         # Moving average statistics
@@ -97,9 +98,13 @@ class Trainer(object):
                 self.optimizer.zero_grad()
 
                 loss = self.loss_fn(y_pred, y_true)
-                loss.backward()
-                self.optimizer.step()
-                self.scheduler.step()
+
+                # Accumulate gradient to effectively increase batch size
+                if step % gradient_accumulate_steps == 0:
+                    self.optimizer.step()
+                    self.scheduler.step()
+                # Normalise the loss if accumulation applied
+                (loss/gradient_accumulate_steps).backward()
 
                 accuracy = self.metric(y_pred, y_true)
                 loss = loss.cpu().item() if use_cuda else loss.item()
@@ -141,11 +146,13 @@ class Trainer(object):
                 )
             )
             
-        return epoch_loss, accuracy
+        return epoch_loss, epoch_accuracy
     
-    def train(self, val_freq=20):
+    def train(self, gradient_accumulate_steps=1, logging_freq=10, val_freq=20):
         """
         Function to train the model
+        gradient_accumulate_steps: how many steps of training before we do optimisation
+        logging_freq: how many steps do we log the running stat
         val_freq: frequency to do evaluation
         """
         # Moving average statistics
@@ -157,7 +164,12 @@ class Trainer(object):
         for i in range(self.epochs):
             self.model.train()
             print('-' * 30 + 'Train for Epoch {}'.format(i) + '-'*30 )
-            epoch_loss, epoch_accuracy = self.run_one_epoch(self.train_loader, logging_freq=10, eval=False)
+            epoch_loss, epoch_accuracy = self.run_one_epoch(
+                self.train_loader, 
+                logging_freq=logging_freq, 
+                gradient_accumulate_steps=gradient_accumulate_steps, 
+                eval=False
+            )
             
             train_loss += epoch_loss
             train_accuracy += epoch_accuracy
@@ -172,7 +184,12 @@ class Trainer(object):
                 self.model.eval()
                 with torch.no_grad():
                     print('-' * 30 + 'Val at Epoch{}'.format(i) + '-'*30 )
-                    epoch_loss, epoch_accuracy = self.run_one_epoch(self.val_loader, logging_freq=10, eval=True)
+                    epoch_loss, epoch_accuracy = self.run_one_epoch(
+                        self.val_loader, 
+                        logging_freq=logging_freq, 
+                        gradient_accumulate_steps=gradient_accumulate_steps, 
+                        eval=True
+                    )
 
                     val_loss += epoch_loss
                     val_accuracy += epoch_accuracy
