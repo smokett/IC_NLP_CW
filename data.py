@@ -16,9 +16,11 @@ class dataset(Dataset):
         label = torch.LongTensor([self.df['label'].iloc[index]]).squeeze()
         return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze(), label
 
-    def get_sample_weights(self):
+    def get_sample_weights(self, scaling=1):
         weights = self.df['label'].value_counts().min() / self.df['label'].value_counts()[self.df['label']]
-        return weights.to_list()
+        weights = weights.to_list()
+        weights = [w*scaling if w!=1 else w for w in weights]
+        return weights
 
 
 if __name__=='__main__':

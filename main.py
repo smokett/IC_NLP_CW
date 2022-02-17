@@ -31,7 +31,7 @@ train_data = dataset(df_train, tk)
 val_data = dataset(df_test, tk)
 
 # Rebalance data if necessary
-train_sample_weights = train_data.get_sample_weights()
+train_sample_weights = train_data.get_sample_weights(scaling=2)
 train_weighted_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
 
 # Prepare dataloader
@@ -40,7 +40,7 @@ val_dataloader = DataLoader(dataset=val_data, batch_size=1, shuffle=False)
 
 # Useful settings (hyperparameters)
 config = {
-    'lr': 1e-3,
+    'lr': 4e-5,
     'epochs': 20,
     'gradient_accumulate_steps': 2,
     'mo': None,

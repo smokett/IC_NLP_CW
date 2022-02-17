@@ -12,7 +12,7 @@ def cal_acc(y_pred, y_true):
     """
     Calculate accuracy
     """
-    return torch.sum(torch.argmax(y_pred, axis=1) == y_true) / len(y_true)
+    return torch.sum(y_pred.argmax(dim=1) == y_true) / len(y_true)
 
 def f1_loss(y_pred, y_true, is_training=False):
     """
@@ -115,8 +115,8 @@ class Trainer(object):
                     self.scheduler.step()
 
                 accuracy = self.metric(y_pred, y_true)
-                loss = loss.cpu().item() if use_cuda else loss.item()
-                accuracy = accuracy.cpu().item() if use_cuda else accuracy.item()     
+                loss = loss.cpu().item()
+                accuracy = accuracy.cpu().item()    
                 
                 batch_loss.append(loss)
                 batch_accuracy.append(accuracy)
@@ -126,14 +126,12 @@ class Trainer(object):
                 loss = self.loss_fn(y_pred, y_true)
                 accuracy = self.metric(y_pred, y_true)
 
-                loss = loss.cpu().item() if use_cuda else loss.item()
-                accuracy = accuracy.cpu().item() if use_cuda else accuracy.item()  
+                loss = loss.cpu().item()
+                accuracy = accuracy.cpu().item()
 
                 batch_loss.append(loss)
                 batch_accuracy.append(accuracy)
                 
-            epoch_loss = np.sum(batch_loss)
-            epoch_accuracy = np.sum(batch_accuracy)
 
             # Logging statistics
             mode = "Train" if not eval else "Eval"
@@ -149,10 +147,12 @@ class Trainer(object):
             if (step) == len(loader)-1:
                 data_iter.set_description("[Per Batch Stat] Mode: {} | End of Epoch | Loss: {} | Metric: {}".format(
                     mode, 
-                    epoch_loss/(step+1),
-                    epoch_accuracy/(step+1)
+                    np.mean(batch_loss),
+                    np.mean(batch_accuracy)
                 )
             )
+        epoch_loss = np.mean(batch_loss)
+        epoch_accuracy = np.mean(batch_accuracy)
             
         return epoch_loss, epoch_accuracy
     
