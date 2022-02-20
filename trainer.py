@@ -22,10 +22,10 @@ def f1_loss(y_pred, y_true, is_training=False):
     assert y_pred.ndim == 1 or y_pred.ndim == 2
     if y_pred.ndim == 2:
         y_pred = y_pred.argmax(dim=1)
-    tp = (y_true * y_pred).sum().to(torch.float32)
-    tn = ((1 - y_true) * (1 - y_pred)).sum().to(torch.float32)
-    fp = ((1 - y_true) * y_pred).sum().to(torch.float32)
-    fn = (y_true * (1 - y_pred)).sum().to(torch.float32)
+    tp = (y_true * y_pred).sum().to(torch.float32) 
+    tn = ((1 - y_true) * (1 - y_pred)).sum().to(torch.float32) 
+    fp = ((1 - y_true) * y_pred).sum().to(torch.float32) 
+    fn = (y_true * (1 - y_pred)).sum().to(torch.float32) 
     epsilon = 1e-7
     precision = tp / (tp + fp + epsilon)
     recall = tp / (tp + fn + epsilon)
@@ -55,7 +55,7 @@ class Trainer(object):
         self.loss_fn = nn.CrossEntropyLoss()
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.metric = f1_loss
+        self.metric = cal_acc
 
 
 
@@ -95,12 +95,18 @@ class Trainer(object):
 
         batch_loss = []
         batch_accuracy = []
+
+        all_y_true = []
+        all_y_pred = []
         
         data_iter = tqdm(enumerate(loader), total=len(loader), bar_format="{bar}{l_bar}{r_bar}")
         for step, batch in data_iter:
             input_ids, attention_mask, y_true = [x.to(device) for x in batch]
             y_pred = self.model(input_ids, attention_mask)
 
+            # Since F1 only calculated per whole Epoch
+            all_y_true.append(y_true)
+            all_y_pred.append(y_pred)
             # Training, actively update parameters
             if not eval:
                 self.optimizer.zero_grad()
@@ -151,6 +157,7 @@ class Trainer(object):
                     np.mean(batch_accuracy)
                 )
             )
+        epoch_f1 = f1_loss(torch.cat(all_y_pred), torch.cat(all_y_true))
         epoch_loss = np.mean(batch_loss)
         epoch_accuracy = np.mean(batch_accuracy)
             
@@ -170,7 +177,7 @@ class Trainer(object):
 
         for i in range(self.epochs):
             self.model.train()
-            print('-' * 30 + 'Train for Epoch {}'.format(i) + '-'*30 )
+            print('-' * 30 + 'Train for Epoch {}'.format(i+1) + '-'*30 )
             epoch_loss, epoch_accuracy = self.run_one_epoch(
                 self.train_loader, 
                 logging_freq=logging_freq, 
@@ -189,7 +196,7 @@ class Trainer(object):
             if i % val_freq == 0:
                 self.model.eval()
                 with torch.no_grad():
-                    print('-' * 30 + 'Val at Epoch{}'.format(i) + '-'*30 )
+                    print('-' * 30 + 'Val at Epoch{}'.format(i+1) + '-'*30 )
                     epoch_loss, epoch_accuracy = self.run_one_epoch(
                         self.val_loader, 
                         logging_freq=logging_freq, 

@@ -15,6 +15,17 @@ device = 'cuda' if use_cuda else 'cpu'
 path = 'nlp_data'
 df_train, df_test, _, _ = get_df(path)
 
+# Useful settings (hyperparameters)
+config = {
+    'lr': 4e-5,
+    'epochs': 20,
+    'gradient_accumulate_steps': 2,
+    'mo': None,
+    'resample_scale':2,
+    'input_max_length': 512,
+    'batch_size': 1
+}
+
 # Preprocessing
 # TO-DO
 
@@ -31,20 +42,13 @@ train_data = dataset(df_train, tk)
 val_data = dataset(df_test, tk)
 
 # Rebalance data if necessary
-train_sample_weights = train_data.get_sample_weights(scaling=2)
+train_sample_weights = train_data.get_sample_weights(scaling=config['resample_scale'])
 train_weighted_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
 
 # Prepare dataloader
-train_dataloader = DataLoader(dataset=train_data, batch_size=1, sampler=train_weighted_sampler)
-val_dataloader = DataLoader(dataset=val_data, batch_size=1, shuffle=False)
+train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_weighted_sampler)
+val_dataloader = DataLoader(dataset=val_data, batch_size=config['batch_size'], shuffle=False)
 
-# Useful settings (hyperparameters)
-config = {
-    'lr': 4e-5,
-    'epochs': 20,
-    'gradient_accumulate_steps': 2,
-    'mo': None,
-}
 
 
 # Define our Trainer class
@@ -56,7 +60,7 @@ trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_datal
 trainer.train()
 
 test_sent = 'I am test'
-data = tk(test_sent, truncation=True, padding='max_length', max_length=512, return_tensors='pt')
+data = tk(test_sent, truncation=True, padding='max_length', max_length=config['input_max_length'], return_tensors='pt')
 
 result = trainer.inference(data)
 print(result)
