@@ -32,6 +32,7 @@ def f1_loss(y_pred, y_true, is_training=False):
     
     f1 = 2* (precision*recall) / (precision + recall + epsilon)
     f1.requires_grad = is_training
+    print('tp: {}, tn:{}, fp:{}, fn:{}\nprecision:{} recall:{}'.format(tp, tn, fp, fn, precision, recall))
     return f1
 
 class Trainer(object):
@@ -191,7 +192,7 @@ class Trainer(object):
             train_f1 += epoch_f1
 
             print("[Epoch Running Stat] Mode: Train | Epoch: {} | Loss: {} | Metric: {} | F1: {}".format(
-                  i + 1, train_loss / (i+1), train_accuracy / (i+1), epoch_f1 / (i+1)
+                  i + 1, train_loss / (i+1), train_accuracy / (i+1), epoch_f1
                 )
             )
 
@@ -210,7 +211,7 @@ class Trainer(object):
                     val_accuracy += epoch_accuracy
                     val_f1 += epoch_f1
                     print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {} | F1: {}".format(
-                        i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1), val_f1 / (i//val_freq+1)
+                        i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1), epoch_f1
                         )
                     )
     def inference(self, data):
