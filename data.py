@@ -7,7 +7,7 @@ class dataset(Dataset):
         self.df = df
         self.tk = tokenizer
 
-        self.data_encoded = [self.tk(sent, truncation=True, padding='max_length', max_length=512, return_tensors='pt') for sent in df['paragraph']]
+        self.data_encoded = [self.tk(sent, truncation=True, padding='max_length', max_length=512, return_tensors='pt') for sent in self.df['paragraph']]
     def __len__(self):
         return self.df.shape[0]
     

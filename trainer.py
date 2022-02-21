@@ -157,11 +157,11 @@ class Trainer(object):
                     np.mean(batch_accuracy)
                 )
             )
-        epoch_f1 = f1_loss(torch.cat(all_y_pred), torch.cat(all_y_true))
         epoch_loss = np.mean(batch_loss)
         epoch_accuracy = np.mean(batch_accuracy)
-            
-        return epoch_loss, epoch_accuracy
+        epoch_f1 = f1_loss(torch.cat(all_y_pred), torch.cat(all_y_true))
+
+        return epoch_loss, epoch_accuracy, epoch_f1
     
     def train(self, logging_freq=10, val_freq=20):
         """
@@ -172,13 +172,15 @@ class Trainer(object):
         # Moving average statistics
         train_loss = 0.0
         train_accuracy = 0.0
+        train_f1 = 0.0
         val_loss = 0.0
         val_accuracy = 0.0
+        val_f1 = 0.0
 
         for i in range(self.epochs):
             self.model.train()
             print('-' * 30 + 'Train for Epoch {}'.format(i+1) + '-'*30 )
-            epoch_loss, epoch_accuracy = self.run_one_epoch(
+            epoch_loss, epoch_accuracy, epoch_f1 = self.run_one_epoch(
                 self.train_loader, 
                 logging_freq=logging_freq, 
                 eval=False
@@ -186,9 +188,10 @@ class Trainer(object):
             
             train_loss += epoch_loss
             train_accuracy += epoch_accuracy
+            train_f1 += epoch_f1
 
-            print("[Epoch Running Stat] Mode: Train | Epoch: {} | Loss: {} | Metric: {}".format(
-                  i + 1, train_loss / (i+1), train_accuracy / (i+1)
+            print("[Epoch Running Stat] Mode: Train | Epoch: {} | Loss: {} | Metric: {} | F1: {}".format(
+                  i + 1, train_loss / (i+1), train_accuracy / (i+1), epoch_f1 / (i+1)
                 )
             )
 
@@ -197,7 +200,7 @@ class Trainer(object):
                 self.model.eval()
                 with torch.no_grad():
                     print('-' * 30 + 'Val at Epoch{}'.format(i+1) + '-'*30 )
-                    epoch_loss, epoch_accuracy = self.run_one_epoch(
+                    epoch_loss, epoch_accuracy, epoch_f1 = self.run_one_epoch(
                         self.val_loader, 
                         logging_freq=logging_freq, 
                         eval=True
@@ -205,9 +208,11 @@ class Trainer(object):
 
                     val_loss += epoch_loss
                     val_accuracy += epoch_accuracy
-                    print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {}".format(
-                        i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1)
-                    ))
+                    val_f1 += epoch_f1
+                    print("[Epoch Running Stat] Mode: Eval | Epoch: {} | Loss: {} | Metric: {} | F1: {}".format(
+                        i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1), val_f1 / (i//val_freq+1)
+                        )
+                    )
     def inference(self, data):
         with torch.no_grad():
             data = data.to(device)
