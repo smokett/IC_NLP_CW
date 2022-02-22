@@ -41,6 +41,7 @@ config = {
 # Preprocessing
 # TO-DO
 df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
+df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'])
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")
