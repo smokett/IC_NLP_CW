@@ -31,6 +31,11 @@ def get_df(path):
     df_test.to_csv('df_test.csv')
     return df_train, df_test, df_pcl, df_cat
 
+def get_ext_df(path):
+    ext_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph', 'label']
+    df_train = pd.read_csv(os.path.join(path, 'df_train_expansion.csv'), names=ext_col_names, index_col='paragraph_id')
+    return df_train
+
 def save(obj, filename):
     with open(filename, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)

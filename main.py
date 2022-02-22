@@ -1,12 +1,22 @@
 import torch
+import numpy as np
+import random
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
 from data import dataset
 from model import MyBertModel
 from trainer import Trainer
-from utils import get_df
+from utils import get_df, get_ext_df
 from data_analysis import Preprocessor
 from transformers import RobertaForSequenceClassification, BertForSequenceClassification
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+set_seed(1)
+
 # Check if using cuda
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
@@ -14,9 +24,11 @@ device = 'cuda' if use_cuda else 'cpu'
 # Load data
 path = 'nlp_data'
 df_train, df_test, _, _ = get_df(path)
+df_train_ext = get_ext_df(path)
 
 # Useful settings (hyperparameters)
 config = {
+    'back_translation': True,
     'lr': 4e-5,
     'epochs': 20,
     'gradient_accumulate_steps': 2,
@@ -38,7 +50,10 @@ bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base')
 
 
 # Prepare dataset
-train_data = dataset(df_train, tk)
+if config['back_translation']:
+    train_data = dataset(df_train_ext, tk)
+else:
+    train_data = dataset(df_train, tk)
 val_data = dataset(df_test, tk)
 
 # Rebalance data if necessary
