@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import random
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler, RandomSampler
 from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
 from data import dataset
 from model import MyBertModel
@@ -35,7 +35,7 @@ config = {
     'mo': None,
     'resample_scale':2,
     'input_max_length': 512,
-    'batch_size': 1
+    'batch_size': 8
 }
 
 # Preprocessing
@@ -57,11 +57,14 @@ else:
 val_data = dataset(df_test, tk)
 
 # Rebalance data if necessary
-train_sample_weights = train_data.get_sample_weights(scaling=config['resample_scale'])
-train_weighted_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
+if config['resample_scale'] is not None:
+    train_sample_weights = train_data.get_sample_weights(scaling=config['resample_scale'])
+    train_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
+else:
+    train_sampler = RandomSampler(train_data, replacement=False)
 
 # Prepare dataloader
-train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_weighted_sampler)
+train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_sampler)
 val_dataloader = DataLoader(dataset=val_data, batch_size=config['batch_size'], shuffle=False)
 
 
