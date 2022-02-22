@@ -67,5 +67,51 @@ def evaluate(y_score, y_true):
     plt.xlabel('False Positive Rate')
     plt.show()
 
+def cut_sentences(df, df_cat, max_len=512):
+        """
+        Fucntion to cut sentence and place it as a new sample
+
+        For example, a sentence with length 1025 will be cut into:
+        sentence A with len 512 + sentence B with len 512 + sentence C with len 1
+        Other info such as label will be retained
+
+        Is this the best approach? Should we only do it to the negative samples?
+        """
+        # Should we find the nearest "." symbol to cut the sentences?
+
+        def row_update(r):
+            num_sent = len(r.paragraph)
+            l = [0 for _ in range(num_sent)]
+            for i in range(num_sent):
+                if isinstance(r.min_start, list):
+                    for i in range(len(r.min_start)):
+                        s = int(r.min_start[i]//max_len)
+                        e = int(r.max_end[i]//max_len) + 1
+                        for j in range(s,e):
+                            l[j] = 1
+            r.label = l
+            return r
+
+        def explode(df, col1, col2):
+            df['tmp']=df.apply(lambda row: list(zip(row[col1],row[col2])), axis=1) 
+            df=df.explode('tmp')
+            df[[col1,col2]]=pd.DataFrame(df['tmp'].tolist(), index=df.index)
+            df.drop(columns='tmp', inplace=True)
+            return df
+
+        min_start = df_cat.groupby('paragraph_id')['span_start'].apply(list)
+        max_end = df_cat.groupby('paragraph_id')['span_end'].apply(list)
+
+        
+        df['paragraph'] = df.paragraph.apply(lambda s: [s[i:i+max_len] for i in range(0, len(s), max_len)])
+        df = df.assign(min_start=min_start, max_end=max_end)
+        df = df.apply(row_update,axis=1)
+        # For pandas version < 1.3
+        df = explode(df, 'paragraph','label')
+        # For pandas version > 1.3
+        # df = df.explode(['paragraph', 'label']) 
+        df.drop(columns=['min_start', 'max_end'], inplace=True)
+        return df
+
 if __name__ == '__main__':
     df_train, df_test, df_pcl, df_cat = get_df('nlp_data')

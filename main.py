@@ -6,7 +6,7 @@ from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
 from data import dataset
 from model import MyBertModel
 from trainer import Trainer
-from utils import get_df, get_ext_df
+from utils import get_df, get_ext_df, cut_sentences
 from data_analysis import Preprocessor
 from transformers import RobertaForSequenceClassification, BertForSequenceClassification
 
@@ -23,7 +23,7 @@ device = 'cuda' if use_cuda else 'cpu'
 
 # Load data
 path = 'nlp_data'
-df_train, df_test, _, _ = get_df(path)
+df_train, df_test, df_pcl, df_cat = get_df(path)
 df_train_ext = get_ext_df(path)
 
 # Useful settings (hyperparameters)
@@ -40,7 +40,7 @@ config = {
 
 # Preprocessing
 # TO-DO
-
+df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")

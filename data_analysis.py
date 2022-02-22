@@ -20,22 +20,6 @@ class Preprocessor(object):
         self.nlp = spacy.load('en_core_web_md')
         self.tfidf = TfidfVectorizer(tokenizer=lambda x: x, min_df = 2, max_df = 0.5, ngram_range = (1, 2), lowercase=False)
 
-    @staticmethod
-    def cut_sentences(self, df, max_len=512):
-        """
-        Fucntion to cut sentence and place it as a new sample
-
-        For example, a sentence with length 1025 will be cut into:
-        sentence A with len 512 + sentence B with len 512 + sentence C with len 1
-        Other info such as label will be retained
-
-        Is this the best approach? Should we only do it to the negative samples?
-        """
-        # Should we find the nearest "." symbol to cut the sentences?
-        df['paragraph'] = df.paragraph.apply(lambda s: [s[i:i+max_len] for i in range(0, len(s), max_len)])
-        df.explode('paragraph', inplace=True)
-        return df
-
     def spacy_preprocess(self, texts, save_path):
         """
         Function to preprocess using spacy tokenizer AND save the resulted tokens
