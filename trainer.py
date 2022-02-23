@@ -166,7 +166,7 @@ class Trainer(object):
 
                 hard_examples = self.hard_sample_mining(y_pred, y_true, input_ids)
                 hard_examples = pd.DataFrame.from_dict(hard_examples)
-                all_hard_examples.append(hard_examples)
+                all_hard_examples = all_hard_examples.append(hard_examples, ignore_index=True)
                 
 
             # Logging statistics
