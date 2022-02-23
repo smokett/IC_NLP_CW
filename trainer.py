@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from transformers import get_linear_schedule_with_warmup
 from tqdm import tqdm
-
+from loss import FocalLoss
 
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
@@ -45,20 +45,42 @@ class Trainer(object):
         self.epochs = self.config['epochs']
         self.gas = self.config['gradient_accumulate_steps']
         self.lr = self.config['lr']
+        self.use_layerwise_learning_rate = self.config['use_layerwise_learning_rate']
 
         self.model = model.to(device)
-        self.optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.lr)
+        if self.use_layerwise_learning_rate:
+            self.optimizer = self.get_opt_with_layerwise_learning_rate()
+        else:
+            self.optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.lr)
         self.scheduler = get_linear_schedule_with_warmup(
             self.optimizer,
             num_warmup_steps=0, # Default value
             num_training_steps=self.epochs * (len(train_loader)//self.gas) # Note the traing steps also adjust based on gas
         )
         self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = FocalLoss()
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.metric = cal_acc
 
 
+    def get_opt_with_layerwise_learning_rate(self):
+        no_decay = ['bias', 'LayerNorm']
+        group1=['layer.0.','layer.1.','layer.2.','layer.3.']
+        group2=['layer.4.','layer.5.','layer.6.','layer.7.']
+        group3=['layer.8.','layer.9.','layer.10.','layer.11.']
+        group_all=['layer.0.','layer.1.','layer.2.','layer.3.','layer.4.','layer.5.','layer.6.','layer.7.','layer.8.','layer.9.','layer.10.','layer.11.']
+        optimizer_parameters = [
+          {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay) and not any(nd in n for nd in group_all)],'weight_decay': 0.01},
+          {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay) and any(nd in n for nd in group1)],'weight_decay': 0.01, 'lr': self.lr/2.6},
+          {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay) and any(nd in n for nd in group2)],'weight_decay': 0.01, 'lr': self.lr},
+          {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay) and any(nd in n for nd in group3)],'weight_decay': 0.01, 'lr': self.lr*2.6},
+          {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay) and not any(nd in n for nd in group_all)],'weight_decay': 0.0},
+          {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay) and any(nd in n for nd in group1)],'weight_decay': 0.0, 'lr': self.lr/2.6},
+          {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay) and any(nd in n for nd in group2)],'weight_decay': 0.0, 'lr': self.lr},
+          {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay) and any(nd in n for nd in group3)],'weight_decay': 0.0, 'lr': self.lr*2.6},
+        ]
+        return torch.optim.AdamW(params=optimizer_parameters, lr=self.lr)
 
     def from_checkpoint(self, model_path):
         """

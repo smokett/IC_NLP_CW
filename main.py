@@ -28,6 +28,7 @@ df_train_ext = get_ext_df(path)
 
 # Useful settings (hyperparameters)
 config = {
+    'use_layerwise_learning_rate': False,
     'back_translation': True,
     'lr': 4e-5,
     'epochs': 20,
