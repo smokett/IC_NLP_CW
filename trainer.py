@@ -4,6 +4,7 @@ import numpy as np
 from transformers import get_linear_schedule_with_warmup
 from tqdm import tqdm
 from loss import FocalLoss
+import pandas as pd
 
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
@@ -58,7 +59,7 @@ class Trainer(object):
             num_training_steps=self.epochs * (len(train_loader)//self.gas) # Note the traing steps also adjust based on gas
         )
         self.loss_fn = nn.CrossEntropyLoss()
-        self.loss_fn = FocalLoss()
+        self.loss_fn = FocalLoss(reduction="mean")
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.metric = cal_acc
@@ -121,6 +122,8 @@ class Trainer(object):
 
         all_y_true = []
         all_y_pred = []
+
+        all_hard_examples = pd.DataFrame()
         
         data_iter = tqdm(enumerate(loader), total=len(loader), bar_format="{bar}{l_bar}{r_bar}")
         for step, batch in data_iter:
@@ -160,6 +163,10 @@ class Trainer(object):
 
                 batch_loss.append(loss)
                 batch_accuracy.append(accuracy)
+
+                hard_examples = self.hard_sample_mining(y_pred, y_true, input_ids)
+                hard_examples = pd.DataFrame.from_dict(hard_examples)
+                all_hard_examples.append(hard_examples)
                 
 
             # Logging statistics
@@ -184,6 +191,8 @@ class Trainer(object):
         epoch_accuracy = np.mean(batch_accuracy)
         epoch_f1 = f1_loss(torch.cat(all_y_pred), torch.cat(all_y_true))
 
+        if eval:
+            all_hard_examples.to_csv('all_hard_examples.csv')
         return epoch_loss, epoch_accuracy, epoch_f1
     
     def train(self, logging_freq=10, val_freq=20):
@@ -243,4 +252,16 @@ class Trainer(object):
             y_pred = y_pred.argmax(dim=1)
             return y_pred.cpu().item()
 
-            
+    def hard_sample_mining(self, y_pred, y_true, input_ids):
+        assert y_true.ndim == 1
+        assert y_pred.ndim == 1 or y_pred.ndim == 2
+        assert y_true.size(0) == input_ids.size(0)
+        if y_pred.ndim == 2:
+            y_pred = y_pred.argmax(dim=1)
+        input_ids = input_ids.detach().cpu().numpy()
+        y_pred = y_pred.detach().cpu().numpy()
+        y_true = y_true.detach().cpu().numpy()
+        hard_ids = [input_ids[i] for i in range(len(input_ids)) if y_true[i] != y_pred[i]]
+        hard_labels = [y_true[i] for i in range(len(y_true)) if y_true[i] != y_pred[i]]
+        hard_examples = {'input_ids': hard_ids, 'labels':hard_labels}
+        return hard_examples

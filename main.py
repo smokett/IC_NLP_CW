@@ -6,7 +6,7 @@ from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
 from data import dataset
 from model import MyBertModel
 from trainer import Trainer
-from utils import get_df, get_ext_df, cut_sentences
+from utils import get_df, get_ext_df, cut_sentences, check_hard_examples
 from data_analysis import Preprocessor
 from transformers import RobertaForSequenceClassification, BertForSequenceClassification
 
@@ -28,9 +28,10 @@ df_train_ext = get_ext_df(path)
 
 # Useful settings (hyperparameters)
 config = {
-    'use_layerwise_learning_rate': False,
+    'preprocess': False,
+    'use_layerwise_learning_rate': True,
     'back_translation': True,
-    'lr': 4e-5,
+    'lr': 2e-5,
     'epochs': 20,
     'gradient_accumulate_steps': 2,
     'mo': None,
@@ -41,8 +42,9 @@ config = {
 
 # Preprocessing
 # TO-DO
-df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
-df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'])
+if config['preprocess']:
+    df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
+    df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'])
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")
@@ -77,7 +79,11 @@ trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_datal
 # If load from pretrained
 # trainer.from_checkpoint(model_path='models/saved_model.pt')
 # -- Start Training -- #
-trainer.train()
+trainer.train(val_freq=1)
+
+# View hard examples in the last validation epoch
+hard_examples = check_hard_examples(tk)
+print(hard_examples.head(5))
 
 test_sent = 'I am test'
 data = tk(test_sent, truncation=True, padding='max_length', max_length=config['input_max_length'], return_tensors='pt')

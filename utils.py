@@ -113,5 +113,10 @@ def cut_sentences(df, df_cat, max_len=512):
         df.drop(columns=['min_start', 'max_end'], inplace=True)
         return df
 
+def check_hard_examples(tk):
+    df = pd.read_csv('all_hard_examples.csv', header=True)
+    df['input_ids'] = df['input_ids'].apply(lambda x: tk.decode(x))
+    df.to_csv('all_hard_examples.csv')
+    return df
 if __name__ == '__main__':
     df_train, df_test, df_pcl, df_cat = get_df('nlp_data')
