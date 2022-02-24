@@ -23,7 +23,7 @@ device = 'cuda' if use_cuda else 'cpu'
 
 # Load data
 path = 'nlp_data'
-df_train, df_test, df_pcl, df_cat = get_df(path)
+df_train, df_val, df_test, df_pcl, df_cat = get_df(path)
 df_train_ext = get_ext_df(path)
 
 # Useful settings (hyperparameters)
@@ -44,7 +44,7 @@ config = {
 # TO-DO
 if config['preprocess']:
     df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
-    df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'])
+    df_val = cut_sentences(df_val, df_cat, max_len=config['input_max_length'])
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")
@@ -58,7 +58,8 @@ if config['back_translation']:
     train_data = dataset(df_train_ext, tk)
 else:
     train_data = dataset(df_train, tk)
-val_data = dataset(df_test, tk)
+val_data = dataset(df_val, tk)
+test_data = dataset(df_test, tk, test=True)
 
 # Rebalance data if necessary
 if config['resample_scale'] is not None:
@@ -70,14 +71,12 @@ else:
 # Prepare dataloader
 train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_sampler)
 val_dataloader = DataLoader(dataset=val_data, batch_size=config['batch_size'], shuffle=False)
-
+test_dataloader = DataLoader(dataset=test_data, batch_size=1, shuffle=False)
 
 
 # Define our Trainer class
 trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
 
-# If load from pretrained
-# trainer.from_checkpoint(model_path='models/saved_model.pt')
 # -- Start Training -- #
 trainer.train(val_freq=1)
 
@@ -85,9 +84,11 @@ trainer.train(val_freq=1)
 hard_examples = check_hard_examples(tk)
 print(hard_examples.head(5))
 
-test_sent = 'I am test'
-data = tk(test_sent, truncation=True, padding='max_length', max_length=config['input_max_length'], return_tensors='pt')
+# If load from pretrained
+trainer.from_checkpoint(model_path='models/saved_model.pt')
+with open('result.txt', 'w') as f:
+    for i, data in enumerate(test_dataloader):
+        result = trainer.inference(data)
+        f.write(str(result)+'\n')
 
-result = trainer.inference(data)
-print(result)
 

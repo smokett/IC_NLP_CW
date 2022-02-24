@@ -83,7 +83,7 @@ class Trainer(object):
         ]
         return torch.optim.AdamW(params=optimizer_parameters, lr=self.lr)
 
-    def from_checkpoint(self, model_path):
+    def from_checkpoint(self, model_path='models/saved_model.pt'):
         """
         Function to load trained model
         """
@@ -100,7 +100,7 @@ class Trainer(object):
             print('Provided path {} not found!'.format(model_path))
             print('-'*60)
     
-    def save_checkpoint(self, save_path):
+    def save_checkpoint(self, save_path='models/saved_model.pt'):
         torch.save(model.state_dict(), model_path)
         print('-'*60)
         print('Model saved as path {}!'.format(save_path))
@@ -209,6 +209,8 @@ class Trainer(object):
         val_accuracy = 0.0
         val_f1 = 0.0
 
+        best_f1 = 0.0
+
         for i in range(self.epochs):
             self.model.train()
             print('-' * 30 + 'Train for Epoch {}'.format(i+1) + '-'*30 )
@@ -245,10 +247,16 @@ class Trainer(object):
                         i//val_freq + 1, val_loss / (i//val_freq+1), val_accuracy / (i//val_freq+1), epoch_f1
                         )
                     )
+
+                    # Save best model
+                    if epoch_f1 > best_f1 :
+                        self.save_checkpoint()
+                        best_f1 = epoch_f1
+
     def inference(self, data):
         with torch.no_grad():
             data = data.to(device)
-            y_pred = self.model(data['input_ids'], data['attention_mask'])
+            y_pred = self.model(data)
             y_pred = y_pred.argmax(dim=1)
             return y_pred.cpu().item()
 
@@ -261,7 +269,7 @@ class Trainer(object):
         input_ids = input_ids.detach().cpu().numpy()
         y_pred = y_pred.detach().cpu().numpy()
         y_true = y_true.detach().cpu().numpy()
-        hard_ids = str([input_ids[i] for i in range(len(input_ids)) if y_true[i] != y_pred[i]])
+        hard_ids = [str(list(input_ids[i])) for i in range(len(input_ids)) if y_true[i] != y_pred[i]]
         hard_labels = [y_true[i] for i in range(len(y_true)) if y_true[i] != y_pred[i]]
         hard_examples = {'input_ids': hard_ids, 'labels':hard_labels}
         return hard_examples

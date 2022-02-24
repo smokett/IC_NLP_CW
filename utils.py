@@ -9,10 +9,11 @@ from sklearn.metrics import accuracy_score, classification_report, roc_curve, au
 def get_df(path):
     # Load dataset
     pcl_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph','label']
+    test_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph']
     cat_col_names = ['paragraph_id', 'article_id', 'paragraph', 'keyword', 'country_code', 'span_start', 'span_end', 'span_text', 'category_label', 'number_of_annotators_agreeing_on_that_label']
     df_pcl = pd.read_csv(os.path.join(path, 'dontpatronizeme_pcl.tsv'), sep='\t', skiprows=3, header=None, names=pcl_col_names, index_col='paragraph_id')
     df_cat = pd.read_csv(os.path.join(path, 'dontpatronizeme_categories.tsv'), sep='\t', skiprows=3, header=None, names=cat_col_names)
-    
+    df_test = pd.read_csv(os.path.join(path, 'task4_test.tsv'), sep='\t', header=None, names=test_col_names)
     # df_pcl.dropna(subset=['paragraph'], inplace=True)
     # df_cat.dropna(subset=['paragraph'], inplace=True)
     # 0,1 => No PCL, 2, 3, 4 => PCL
@@ -20,16 +21,16 @@ def get_df(path):
 
     # Train/test split based on official document
     df_train_index = pd.read_csv(os.path.join(path, 'train_semeval_parids-labels.csv'))
-    df_test_index = pd.read_csv(os.path.join(path, 'dev_semeval_parids-labels.csv'))
+    df_val_index = pd.read_csv(os.path.join(path, 'dev_semeval_parids-labels.csv'))
     df_train = df_pcl.reindex(df_train_index['par_id'])
-    df_test = df_pcl.reindex(df_test_index['par_id'])
+    df_val = df_pcl.reindex(df_val_index['par_id'])
 
     df_train.dropna(subset=['paragraph'], inplace=True)
-    df_test.dropna(subset=['paragraph'], inplace=True)
+    df_val.dropna(subset=['paragraph'], inplace=True)
 
     df_train.to_csv('df_train.csv')
-    df_test.to_csv('df_test.csv')
-    return df_train, df_test, df_pcl, df_cat
+    df_val.to_csv('df_val.csv')
+    return df_train, df_val, df_test, df_pcl, df_cat
 
 def get_ext_df(path):
     ext_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph', 'label']
@@ -115,12 +116,12 @@ def cut_sentences(df, df_cat, max_len=512):
 
 def check_hard_examples(tk):
     df = pd.read_csv('all_hard_examples.csv')
-
+    print(df['input_ids'][0])
     df['input_ids'] = df['input_ids'].apply(lambda x: tk.decode(eval(x)))
     df.to_csv('all_hard_examples.csv')
     return df
 if __name__ == '__main__':
-    # df_train, df_test, df_pcl, df_cat = get_df('nlp_data')
+    # df_train, df_val, df_test, df_pcl, df_cat = get_df('nlp_data')
     from transformers import AutoTokenizer
     tk = AutoTokenizer.from_pretrained("roberta-base")
     check_hard_examples(tk)
