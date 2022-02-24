@@ -261,7 +261,7 @@ class Trainer(object):
         input_ids = input_ids.detach().cpu().numpy()
         y_pred = y_pred.detach().cpu().numpy()
         y_true = y_true.detach().cpu().numpy()
-        hard_ids = [str(input_ids[i]) for i in range(len(input_ids)) if y_true[i] != y_pred[i]]
+        hard_ids = str([input_ids[i] for i in range(len(input_ids)) if y_true[i] != y_pred[i]])
         hard_labels = [y_true[i] for i in range(len(y_true)) if y_true[i] != y_pred[i]]
         hard_examples = {'input_ids': hard_ids, 'labels':hard_labels}
         return hard_examples
