@@ -5,6 +5,7 @@ from transformers import get_linear_schedule_with_warmup
 from tqdm import tqdm
 from loss import FocalLoss
 import pandas as pd
+import os
 
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
@@ -101,7 +102,7 @@ class Trainer(object):
             print('-'*60)
     
     def save_checkpoint(self, save_path='models/saved_model.pt'):
-        torch.save(model.state_dict(), model_path)
+        torch.save(self.model.state_dict(), save_path)
         print('-'*60)
         print('Model saved as path {}!'.format(save_path))
         print('-'*60)
@@ -255,8 +256,10 @@ class Trainer(object):
 
     def inference(self, data):
         with torch.no_grad():
-            data = data.to(device)
-            y_pred = self.model(data)
+            [data1, data2] = data
+            data1 = data1.to(device)
+            data2 = data2.to(device)
+            y_pred = self.model(data1,data2)
             y_pred = y_pred.argmax(dim=1)
             return y_pred.cpu().item()
 
