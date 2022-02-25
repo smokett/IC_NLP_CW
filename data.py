@@ -7,17 +7,19 @@ class dataset(Dataset):
         self.df = df
         self.tk = tokenizer
         self.test = test
+        self.keyword_dict = {w:i for (i, w) in enumerate(self.df.keyword.unique())}
         self.data_encoded = [self.tk(sent, truncation=True, padding='max_length', max_length=512, return_tensors='pt') for sent in self.df['paragraph']]
     def __len__(self):
         return self.df.shape[0]
     
     def __getitem__(self, index):
         data_encoded = self.data_encoded[index]
+        keyword = torch.LongTensor([self.keyword_dict[self.df['keyword'].iloc[index]]]).squeeze()
         if self.test:
-            return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze()
+            return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze(), keyword
         else:
             label = torch.LongTensor([self.df['label'].iloc[index]]).squeeze()
-            return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze(), label
+            return data_encoded['input_ids'].squeeze(), data_encoded['attention_mask'].squeeze(), keyword, label
 
     def get_sample_weights(self, scaling=1):
         weights = self.df['label'].value_counts().min() / self.df['label'].value_counts()[self.df['label']]
@@ -40,5 +42,5 @@ if __name__=='__main__':
     # train_dataloader = DataLoader(dataset = train_data, batch_size=8, shuffle=True)
     # val_dataloader = DataLoader(dataset = val_data, batch_size=8, shuffle=False)
     test_dataloader = DataLoader(dataset = test_data, batch_size=1, shuffle=False)
-    a,b = next(iter(test_dataloader))
+    a,b,c = next(iter(test_dataloader))
     print(a.shape, b.shape)

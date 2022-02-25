@@ -128,8 +128,9 @@ class Trainer(object):
         
         data_iter = tqdm(enumerate(loader), total=len(loader), bar_format="{bar}{l_bar}{r_bar}")
         for step, batch in data_iter:
-            input_ids, attention_mask, y_true = [x.to(device) for x in batch]
-            y_pred = self.model(input_ids, attention_mask)
+            batch = [x.to(device) for x in batch]
+            y_true = batch[-1]
+            y_pred = self.model(batch[:-1])
 
             # Since F1 only calculated per whole Epoch
             all_y_true.append(y_true)
@@ -256,10 +257,8 @@ class Trainer(object):
 
     def inference(self, data):
         with torch.no_grad():
-            [data1, data2] = data
-            data1 = data1.to(device)
-            data2 = data2.to(device)
-            y_pred = self.model(data1,data2)
+            data = [x.to(device) for x in data]
+            y_pred = self.model(data)
             y_pred = y_pred.argmax(dim=1)
             return y_pred.cpu().item()
 

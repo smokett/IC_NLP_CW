@@ -4,11 +4,11 @@ import random
 from torch.utils.data import DataLoader, WeightedRandomSampler, RandomSampler
 from transformers import BertTokenizer, AutoTokenizer, PreTrainedTokenizer
 from data import dataset
-from model import MyBertModel
+from model import MyBertModel, MyBertModel_2
 from trainer import Trainer
 from utils import get_df, get_ext_df, cut_sentences, check_hard_examples
 from data_analysis import Preprocessor
-from transformers import RobertaForSequenceClassification, BertForSequenceClassification
+from transformers import RobertaForSequenceClassification, BertForSequenceClassification, RobertaModel
 
 def set_seed(seed):
     random.seed(seed)
@@ -48,7 +48,8 @@ if config['preprocess']:
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")
-bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base')
+bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',classifier_dropout=0.3)
+bert_variant = RobertaModel.from_pretrained('roberta-base', add_pooling_layer = False, attention_probs_dropout_prob=0.5,hidden_dropout_prob=0.5)
 # tk = AutoTokenizer.from_pretrained("bert-base-cased")
 # bert_variant = BertForSequenceClassification.from_pretrained('bert-base-cased')
 
@@ -75,7 +76,7 @@ test_dataloader = DataLoader(dataset=test_data, batch_size=1, shuffle=False)
 
 
 # Define our Trainer class
-trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
+trainer = Trainer(MyBertModel_2(bert_variant), config, train_dataloader, val_dataloader)
 
 # -- Start Training -- #
 trainer.train(val_freq=1)
