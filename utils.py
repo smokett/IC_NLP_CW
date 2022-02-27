@@ -6,7 +6,7 @@ import pickle
 from sklearn.metrics import accuracy_score, classification_report, roc_curve, auc
 
 
-def get_df(path):
+def get_df(path, regression=False):
     # Load dataset
     pcl_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph','label']
     test_col_names = ['paragraph_id', 'article_id', 'keyword', 'country_code', 'paragraph']
@@ -17,7 +17,8 @@ def get_df(path):
     # df_pcl.dropna(subset=['paragraph'], inplace=True)
     # df_cat.dropna(subset=['paragraph'], inplace=True)
     # 0,1 => No PCL, 2, 3, 4 => PCL
-    df_pcl['label'] = 1 * (df_pcl['label'] > 1)
+    if not regression:
+        df_pcl['label'] = 1 * (df_pcl['label'] > 1)
 
     # Train/test split based on official document
     df_train_index = pd.read_csv(os.path.join(path, 'train_semeval_parids-labels.csv'))
@@ -27,6 +28,7 @@ def get_df(path):
 
     df_train.dropna(subset=['paragraph'], inplace=True)
     df_val.dropna(subset=['paragraph'], inplace=True)
+    df_pcl.dropna(subset=['paragraph'], inplace=True)
 
     df_train.to_csv('df_train.csv')
     df_val.to_csv('df_val.csv')
@@ -68,7 +70,7 @@ def evaluate(y_score, y_true):
     plt.xlabel('False Positive Rate')
     plt.show()
 
-def cut_sentences(df, df_cat, max_len=512):
+def cut_sentences(df, df_cat, max_len=512, test=False):
         """
         Fucntion to cut sentence and place it as a new sample
 
@@ -103,8 +105,9 @@ def cut_sentences(df, df_cat, max_len=512):
         min_start = df_cat.groupby('paragraph_id')['span_start'].apply(list)
         max_end = df_cat.groupby('paragraph_id')['span_end'].apply(list)
 
-        
         df['paragraph'] = df.paragraph.apply(lambda s: [s[i:i+max_len] for i in range(0, len(s), max_len)])
+        if test:
+            return df
         df = df.assign(min_start=min_start, max_end=max_end)
         df = df.apply(row_update,axis=1)
         # For pandas version < 1.3
@@ -120,6 +123,7 @@ def check_hard_examples(tk):
     df['input_ids'] = df['input_ids'].apply(lambda x: tk.decode(eval(x)))
     df.to_csv('all_hard_examples.csv')
     return df
+    
 if __name__ == '__main__':
     # df_train, df_val, df_test, df_pcl, df_cat = get_df('nlp_data')
     from transformers import AutoTokenizer

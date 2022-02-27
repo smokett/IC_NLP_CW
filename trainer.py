@@ -6,7 +6,7 @@ from tqdm import tqdm
 from loss import FocalLoss
 import pandas as pd
 import os
-
+from FGM import FGM
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
 
@@ -37,6 +37,12 @@ def f1_loss(y_pred, y_true, is_training=False):
     print('tp: {}, tn:{}, fp:{}, fn:{}\nprecision:{} recall:{}'.format(tp, tn, fp, fn, precision, recall))
     return f1
 
+def to_binary_helper(y_pred, y_true):
+    assert y_pred.ndim == 1
+    y_pred = 1.0 * (y_pred > 1)
+    y_true = 1.0 * (y_true > 1)
+    return y_pred, y_true
+
 class Trainer(object):
     """
     Our trainer of BERT model.
@@ -48,6 +54,7 @@ class Trainer(object):
         self.gas = self.config['gradient_accumulate_steps']
         self.lr = self.config['lr']
         self.use_layerwise_learning_rate = self.config['use_layerwise_learning_rate']
+        self.regression = config['regression']
 
         self.model = model.to(device)
         if self.use_layerwise_learning_rate:
@@ -59,11 +66,16 @@ class Trainer(object):
             num_warmup_steps=0, # Default value
             num_training_steps=self.epochs * (len(train_loader)//self.gas) # Note the traing steps also adjust based on gas
         )
-        self.loss_fn = nn.CrossEntropyLoss()
-        self.loss_fn = FocalLoss(reduction="mean")
+        if not self.regression:
+            self.loss_fn = nn.CrossEntropyLoss()
+            self.loss_fn = FocalLoss(reduction="mean")
+        else:
+            self.loss_fn = nn.MSELoss()
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.metric = cal_acc
+
+        self.fgm = FGM(self.model)
 
 
     def get_opt_with_layerwise_learning_rate(self):
@@ -129,24 +141,32 @@ class Trainer(object):
         data_iter = tqdm(enumerate(loader), total=len(loader), bar_format="{bar}{l_bar}{r_bar}")
         for step, batch in data_iter:
             batch = [x.to(device) for x in batch]
-            y_true = batch[-1]
-            y_pred = self.model(batch[:-1])
+            y_true = batch[-1] if not self.regression else batch[-1].float()
+            y_pred = self.model(batch[:-1]) if not self.regression else self.model(batch[:-1]).squeeze(1)
 
-            # Since F1 only calculated per whole Epoch
-            all_y_true.append(y_true)
-            all_y_pred.append(y_pred)
             # Training, actively update parameters
             if not eval:
                 self.optimizer.zero_grad()
-
                 # Normalise the loss if accumulation applied (decouple from learning rate)
                 loss = self.loss_fn(y_pred, y_true)/self.gas
                 loss.backward()
 
+                # self.fgm.attack() 
+                # y_pred_adv = self.model(batch[:-1]) if not self.regression else self.model(batch[:-1]).squeeze(1)
+                # loss_adv = self.loss_fn(y_pred_adv, y_true)/self.gas
+                # loss_adv.backward()
+                # self.fgm.restore()
                 # Accumulate gradient to effectively increase batch size
                 if step % self.gas == 0:
                     self.optimizer.step()
                     self.scheduler.step()
+
+                if self.regression:
+                    y_pred, y_true = to_binary_helper(y_pred, y_true)
+                
+                # Since F1 only calculated per whole Epoch
+                all_y_true.append(y_true)
+                all_y_pred.append(y_pred)
 
                 accuracy = self.metric(y_pred, y_true)
                 loss = loss.cpu().item()
@@ -158,6 +178,13 @@ class Trainer(object):
             # Evaluation, no gradient
             else:
                 loss = self.loss_fn(y_pred, y_true)
+                if self.regression:
+                    y_pred, y_true = to_binary_helper(y_pred, y_true)
+
+                # Since F1 only calculated per whole Epoch
+                all_y_true.append(y_true)
+                all_y_pred.append(y_pred)
+                
                 accuracy = self.metric(y_pred, y_true)
 
                 loss = loss.cpu().item()
@@ -166,7 +193,7 @@ class Trainer(object):
                 batch_loss.append(loss)
                 batch_accuracy.append(accuracy)
 
-                hard_examples = self.hard_sample_mining(y_pred, y_true, input_ids)
+                hard_examples = self.hard_sample_mining(y_pred, y_true, batch[0])
                 hard_examples = pd.DataFrame.from_dict(hard_examples)
                 all_hard_examples = all_hard_examples.append(hard_examples, ignore_index=True)
                 
@@ -259,7 +286,10 @@ class Trainer(object):
         with torch.no_grad():
             data = [x.to(device) for x in data]
             y_pred = self.model(data)
-            y_pred = y_pred.argmax(dim=1)
+            if self.regression:
+              y_pred = 1.0 * (y_pred > 1)
+            else:
+              y_pred = y_pred.argmax(dim=1)
             return y_pred.cpu().item()
 
     def hard_sample_mining(self, y_pred, y_true, input_ids):

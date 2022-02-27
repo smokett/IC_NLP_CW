@@ -21,35 +21,39 @@ set_seed(1)
 use_cuda = torch.cuda.is_available()
 device = 'cuda' if use_cuda else 'cpu'
 
-# Load data
-path = 'nlp_data'
-df_train, df_val, df_test, df_pcl, df_cat = get_df(path)
-df_train_ext = get_ext_df(path)
-
 # Useful settings (hyperparameters)
 config = {
+    'regression': False,
     'preprocess': False,
-    'use_layerwise_learning_rate': True,
-    'back_translation': True,
-    'lr': 2e-5,
+    'whole_test': True,
+    'use_layerwise_learning_rate': False,
+    'back_translation': False,
+    'lr': 1e-5,
     'epochs': 20,
-    'gradient_accumulate_steps': 2,
+    'gradient_accumulate_steps': 4,
     'mo': None,
-    'resample_scale':2,
+    'resample_scale': 2,
     'input_max_length': 512,
     'batch_size': 8
 }
+
+# Load data
+path = 'nlp_data'
+df_train, df_val, df_test, df_pcl, df_cat = get_df(path, regression=config['regression'])
+df_train_ext = get_ext_df(path)
+
 
 # Preprocessing
 # TO-DO
 if config['preprocess']:
     df_train = cut_sentences(df_train, df_cat, max_len=config['input_max_length'])
     df_val = cut_sentences(df_val, df_cat, max_len=config['input_max_length'])
+    df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'], test=True)
 
 # Define tokenizer/Bert variant
 tk = AutoTokenizer.from_pretrained("roberta-base")
-bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',classifier_dropout=0.3)
-bert_variant = RobertaModel.from_pretrained('roberta-base', add_pooling_layer = False, attention_probs_dropout_prob=0.5,hidden_dropout_prob=0.5)
+bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',classifier_dropout=0.2)
+# bert_variant = RobertaModel.from_pretrained('roberta-base', attention_probs_dropout_prob=0.1,hidden_dropout_prob=0.1)
 # tk = AutoTokenizer.from_pretrained("bert-base-cased")
 # bert_variant = BertForSequenceClassification.from_pretrained('bert-base-cased')
 
@@ -61,6 +65,7 @@ else:
     train_data = dataset(df_train, tk)
 val_data = dataset(df_val, tk)
 test_data = dataset(df_test, tk, test=True)
+whole_train_data = dataset(df_pcl, tk)
 
 # Rebalance data if necessary
 if config['resample_scale'] is not None:
@@ -68,16 +73,19 @@ if config['resample_scale'] is not None:
     train_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
 else:
     train_sampler = RandomSampler(train_data, replacement=False)
-
+whole_train_sample_weights = whole_train_data.get_sample_weights(scaling=config['resample_scale'])
+whole_train_sampler = WeightedRandomSampler(weights=whole_train_sample_weights, num_samples=len(whole_train_data), replacement=True)
 # Prepare dataloader
 train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_sampler)
 val_dataloader = DataLoader(dataset=val_data, batch_size=config['batch_size'], shuffle=False)
 test_dataloader = DataLoader(dataset=test_data, batch_size=1, shuffle=False)
-
+whole_train_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'], sampler=whole_train_sampler)
+whole_test_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'])
 
 # Define our Trainer class
-trainer = Trainer(MyBertModel_2(bert_variant), config, train_dataloader, val_dataloader)
-
+trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
+if config['whole_test']:
+    trainer = Trainer(MyBertModel(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
 # -- Start Training -- #
 trainer.train(val_freq=1)
 
@@ -87,9 +95,9 @@ print(hard_examples.head(5))
 
 # If load from pretrained
 trainer.from_checkpoint(model_path='models/saved_model.pt')
-with open('result.txt', 'w') as f:
+with open('task1.txt', 'w') as f:
     for i, data in enumerate(test_dataloader):
         result = trainer.inference(data)
-        f.write(str(result)+'\n')
+        f.write(str(int(result))+'\n')
 
 
