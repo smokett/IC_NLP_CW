@@ -23,10 +23,10 @@ class MyBertModel_2(nn.Module):
         self.final_out_proj = nn.Sequential(
             nn.Dropout(p=0.2),
             nn.Tanh(),
-            nn.Linear(200, 1, bias=True)
+            nn.Linear(200, 2, bias=True)
             )
         # self.bert.classifier = self.classifier
-        
+
     def forward(self, inputs):
         input_ids = inputs[0]
         attention_mask = inputs[1]

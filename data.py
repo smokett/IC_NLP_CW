@@ -3,11 +3,11 @@ from torch.utils.data import Dataset
 
 ## This file contains Dataset class
 class dataset(Dataset):
-    def __init__(self, df, tokenizer, test=False):
+    def __init__(self, df, tokenizer, keyword_dict, test=False):
         self.df = df
         self.tk = tokenizer
         self.test = test
-        self.keyword_dict = {w:i for (i, w) in enumerate(self.df.keyword.unique())}
+        self.keyword_dict = keyword_dict
         self.data_encoded = [self.tk(sent, truncation=True, padding='max_length', max_length=512, return_tensors='pt') for sent in self.df['paragraph']]
     def __len__(self):
         return self.df.shape[0]
@@ -35,12 +35,18 @@ if __name__=='__main__':
 
     path = 'nlp_data'
     tk = AutoTokenizer.from_pretrained("roberta-base")
-    df_train, df_val, df_test, _, _ = get_df(path)
-    train_data = dataset(df_train,tk)
-    val_data = dataset(df_val,tk)
-    test_data = dataset(df_test, tk, test=True)
-    # train_dataloader = DataLoader(dataset = train_data, batch_size=8, shuffle=True)
+    df_train, df_val, df_test, df_pcl, _ = get_df(path)
+
+    keyword_dict = {w:i for (i, w) in enumerate(df_pcl.keyword.unique())}
+
+    train_data = dataset(df_train,tk, keyword_dict)
+    val_data = dataset(df_val,tk, keyword_dict)
+    test_data = dataset(df_test, tk, keyword_dict, test=True)
+    train_dataloader = DataLoader(dataset = train_data, batch_size=8, shuffle=True)
     # val_dataloader = DataLoader(dataset = val_data, batch_size=8, shuffle=False)
     test_dataloader = DataLoader(dataset = test_data, batch_size=1, shuffle=False)
+    print(train_data.keyword_dict)
+    print(val_data.keyword_dict)
+    print(test_data.keyword_dict)
     a,b,c = next(iter(test_dataloader))
     print(a.shape, b.shape)

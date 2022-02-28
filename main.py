@@ -25,14 +25,14 @@ device = 'cuda' if use_cuda else 'cpu'
 config = {
     'regression': False,
     'preprocess': False,
-    'whole_test': True,
+    'whole_test': False,
     'use_layerwise_learning_rate': False,
     'back_translation': False,
     'lr': 1e-5,
     'epochs': 20,
     'gradient_accumulate_steps': 4,
     'mo': None,
-    'resample_scale': 2,
+    'resample_scale': 4,
     'input_max_length': 512,
     'batch_size': 8
 }
@@ -42,6 +42,7 @@ path = 'nlp_data'
 df_train, df_val, df_test, df_pcl, df_cat = get_df(path, regression=config['regression'])
 df_train_ext = get_ext_df(path)
 
+keyword_dict = {w:i for (i, w) in enumerate(df_pcl.keyword.unique())}
 
 # Preprocessing
 # TO-DO
@@ -60,12 +61,12 @@ bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',c
 
 # Prepare dataset
 if config['back_translation']:
-    train_data = dataset(df_train_ext, tk)
+    train_data = dataset(df_train_ext, tk, keyword_dict)
 else:
-    train_data = dataset(df_train, tk)
-val_data = dataset(df_val, tk)
-test_data = dataset(df_test, tk, test=True)
-whole_train_data = dataset(df_pcl, tk)
+    train_data = dataset(df_train, tk, keyword_dict)
+val_data = dataset(df_val, tk, keyword_dict)
+test_data = dataset(df_test, tk, keyword_dict, test=True)
+whole_train_data = dataset(df_pcl, tk, keyword_dict)
 
 # Rebalance data if necessary
 if config['resample_scale'] is not None:
@@ -83,9 +84,9 @@ whole_train_dataloader = DataLoader(dataset=whole_train_data, batch_size=config[
 whole_test_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'])
 
 # Define our Trainer class
-trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
+trainer = Trainer(MyBertModel_2(bert_variant), config, train_dataloader, val_dataloader)
 if config['whole_test']:
-    trainer = Trainer(MyBertModel(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
+    trainer = Trainer(MyBertModel_2(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
 # -- Start Training -- #
 trainer.train(val_freq=1)
 
