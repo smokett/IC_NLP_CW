@@ -8,7 +8,7 @@ from model import MyBertModel, MyBertModel_2
 from trainer import Trainer
 from utils import get_df, get_ext_df, cut_sentences, check_hard_examples
 from data_analysis import Preprocessor
-from transformers import RobertaForSequenceClassification, BertForSequenceClassification, RobertaModel
+from transformers import RobertaForSequenceClassification, BertForSequenceClassification, RobertaModel, DebertaForSequenceClassification
 
 def set_seed(seed):
     random.seed(seed)
@@ -28,13 +28,13 @@ config = {
     'whole_test': False,
     'use_layerwise_learning_rate': False,
     'back_translation': False,
-    'lr': 1e-5,
-    'epochs': 20,
-    'gradient_accumulate_steps': 4,
+    'lr': 3e-6,
+    'epochs': 10,
+    'gradient_accumulate_steps': 2,
     'mo': None,
-    'resample_scale': 4,
+    'resample_scale': 2,
     'input_max_length': 512,
-    'batch_size': 8
+    'batch_size': 5
 }
 
 # Load data
@@ -52,8 +52,10 @@ if config['preprocess']:
     df_test = cut_sentences(df_test, df_cat, max_len=config['input_max_length'], test=True)
 
 # Define tokenizer/Bert variant
-tk = AutoTokenizer.from_pretrained("roberta-base")
-bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',classifier_dropout=0.2)
+# tk = AutoTokenizer.from_pretrained("roberta-base")
+# bert_variant = RobertaForSequenceClassification.from_pretrained('roberta-base',classifier_dropout=0.2)
+tk = AutoTokenizer.from_pretrained("microsoft/deberta-base")
+bert_variant = DebertaForSequenceClassification.from_pretrained("microsoft/deberta-base")
 # bert_variant = RobertaModel.from_pretrained('roberta-base', attention_probs_dropout_prob=0.1,hidden_dropout_prob=0.1)
 # tk = AutoTokenizer.from_pretrained("bert-base-cased")
 # bert_variant = BertForSequenceClassification.from_pretrained('bert-base-cased')
@@ -84,9 +86,9 @@ whole_train_dataloader = DataLoader(dataset=whole_train_data, batch_size=config[
 whole_test_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'])
 
 # Define our Trainer class
-trainer = Trainer(MyBertModel_2(bert_variant), config, train_dataloader, val_dataloader)
+trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
 if config['whole_test']:
-    trainer = Trainer(MyBertModel_2(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
+    trainer = Trainer(MyBertModel(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
 # -- Start Training -- #
 trainer.train(val_freq=1)
 
