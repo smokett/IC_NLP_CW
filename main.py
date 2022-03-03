@@ -76,12 +76,15 @@ if config['resample_scale'] is not None:
     train_sampler = WeightedRandomSampler(weights=train_sample_weights, num_samples=len(train_data), replacement=True)
 else:
     train_sampler = RandomSampler(train_data, replacement=False)
+
 whole_train_sample_weights = whole_train_data.get_sample_weights(scaling=config['resample_scale'])
 whole_train_sampler = WeightedRandomSampler(weights=whole_train_sample_weights, num_samples=len(whole_train_data), replacement=True)
+
 # Prepare dataloader
 train_dataloader = DataLoader(dataset=train_data, batch_size=config['batch_size'], sampler=train_sampler)
 val_dataloader = DataLoader(dataset=val_data, batch_size=config['batch_size'], shuffle=False)
 test_dataloader = DataLoader(dataset=test_data, batch_size=1, shuffle=False)
+
 whole_train_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'], sampler=whole_train_sampler)
 whole_test_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['batch_size'])
 
@@ -89,6 +92,7 @@ whole_test_dataloader = DataLoader(dataset=whole_train_data, batch_size=config['
 trainer = Trainer(MyBertModel(bert_variant), config, train_dataloader, val_dataloader)
 if config['whole_test']:
     trainer = Trainer(MyBertModel(bert_variant), config, whole_train_dataloader, whole_test_dataloader)
+
 # -- Start Training -- #
 trainer.train(val_freq=1)
 
@@ -98,6 +102,8 @@ print(hard_examples.head(5))
 
 # If load from pretrained
 trainer.from_checkpoint(model_path='models/saved_model.pt')
+
+# Do test inference
 with open('task1.txt', 'w') as f:
     for i, data in enumerate(test_dataloader):
         result = trainer.inference(data)

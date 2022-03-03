@@ -10,6 +10,17 @@ This is the repository for NLP coursework.
 - utils.py: contains useful functions for data analsis and manipulation
 - main.py: the main script that runs the experiment
 
+## Required packages
+`transformers          4.16.2`
+`spacy                 3.2.0`
+`torch                 1.10.0`
+`numpy                 1.19.5`
+`pandas                1.1.5`
+`nltk                  3.4.5`
+`scikit-learn          0.24.2`
+`tqdm                  4.62.3`
+`xgboost               1.4.2`
+
 ## How to run the project
 * To replicate the experiment, please just place the all the data (.csv or .tsv) into the directory `nlp_data` then `python3 main.py`.
 
@@ -21,3 +32,8 @@ This is the repository for NLP coursework.
 * `MyBertModel_2` is the model that includes additional *keyword* information. `MyBertModel` only takes paragraph as inputs Please switch between for different experiments
 
 * The model is saved in `models` directory. The test result will be saved as `task1.txt`
+
+## Reference
+Loper, E., & Bird, S. (2002). Nltk: The natural language toolkit. arXiv preprint cs/0205028.
+
+Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., ... & Rush, A. M. (2020, October). Transformers: State-of-the-art natural language processing. In Proceedings of the 2020 conference on empirical methods in natural language processing: system demonstrations (pp. 38-45).
