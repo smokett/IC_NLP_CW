@@ -25,7 +25,7 @@ This is the repository for NLP coursework.
 `xgboost               1.4.2`  
 
 ## How to run the project
-* To replicate the experiment, please just place the all the data (.csv or .tsv) into the directory `nlp_data` then `python3 main.py`.
+* To replicate the experiment, please just place all the data (.csv or .tsv) into the directory `nlp_data` then run `python3 main.py`.
 
 ## Important notes
 * Please make sure you have all required libraries installed
