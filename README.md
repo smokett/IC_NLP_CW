@@ -2,24 +2,27 @@
 This is the repository for NLP coursework.
 
 ## Description of the files
-- trainer.py: contains our Trainer class
-- loss.py: contains custom loss functions that we used
-- model.py: contains the Model class we used.
-- synonyms.py: contains the functions for data augmentation
-- FGM.py: Adverserial attack training techniques
-- utils.py: contains useful functions for data analsis and manipulation
-- main.py: the main script that runs the experiment
+- `trainer.py`: contains our Trainer class
+- `loss.py`: contains custom loss functions that we used
+- `model.py`: contains the Model class we used.
+- `synonyms.py`: contains the functions for data augmentation
+- `FGM.py`: Adverserial attack training techniques
+- `utils.py`: contains useful functions for data analsis and manipulation
+- `main.py`: the main script that runs the experiment
+- `models`: directory contains saved models
+- `nlp_data`: directory contains data
+- `result`: directory contains results of the test set
 
 ## Required packages
-`transformers          4.16.2`
-`spacy                 3.2.0`
-`torch                 1.10.0`
-`numpy                 1.19.5`
-`pandas                1.1.5`
-`nltk                  3.4.5`
-`scikit-learn          0.24.2`
-`tqdm                  4.62.3`
-`xgboost               1.4.2`
+`transformers          4.16.2`  
+`spacy                 3.2.0`  
+`torch                 1.10.0`  
+`numpy                 1.19.5`  
+`pandas                1.1.5`  
+`nltk                  3.4.5`  
+`scikit-learn          0.24.2`  
+`tqdm                  4.62.3`  
+`xgboost               1.4.2`  
 
 ## How to run the project
 * To replicate the experiment, please just place the all the data (.csv or .tsv) into the directory `nlp_data` then `python3 main.py`.
